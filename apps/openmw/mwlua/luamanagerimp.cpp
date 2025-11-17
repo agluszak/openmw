@@ -55,6 +55,27 @@ namespace MWLua
 
             ~BoolScopeGuard() { mValue = false; }
         };
+
+        std::string_view toCrimeTypeString(MWBase::MechanicsManager::OffenseType type)
+        {
+            using Offense = MWBase::MechanicsManager::OffenseType;
+            switch (type)
+            {
+                case Offense::OT_Assault:
+                    return "assault";
+                case Offense::OT_Murder:
+                    return "murder";
+                case Offense::OT_Trespassing:
+                    return "trespassing";
+                case Offense::OT_SleepingInOwnedBed:
+                    return "sleepingInOwnedBed";
+                case Offense::OT_Pickpocket:
+                    return "pickpocket";
+                case Offense::OT_Theft:
+                default:
+                    return "theft";
+            }
+        }
     }
 
     static LuaUtil::LuaStateSettings createLuaStateSettings()
@@ -264,6 +285,97 @@ namespace MWLua
         {
             playerScripts->onQuestUpdate(questId.serializeText(), stage);
         }
+    }
+
+    void LuaManager::onCrimeWitnessed(MWBase::CrimeWitness& data)
+    {
+        if (!mGlobalScriptsStarted)
+            return;
+
+        MWBase::CrimeWitnessResponse response = data.mResponse;
+        mLua.protectedCall([&](LuaUtil::LuaView& view) {
+            sol::table payload = view.newTable();
+            payload["player"] = LObject(data.mPlayer);
+            payload["witness"] = LObject(data.mWitness);
+            if (!data.mVictim.isEmpty())
+                payload["victim"] = LObject(data.mVictim);
+            payload["typeId"] = static_cast<int>(data.mType);
+            payload["type"] = toCrimeTypeString(data.mType);
+            payload["value"] = data.mValue;
+            payload["alarm"] = data.mAlarm;
+            payload["position"] = data.mCrimePosition;
+            payload["isWitnessGuard"] = data.mWitnessIsGuard;
+            payload["isWitnessVictim"] = data.mWitnessIsVictim;
+            payload["currentDisposition"] = data.mWitnessDisposition;
+            payload["dispositionTerm"] = data.mDispositionTerm;
+            payload["witnessInPursuit"] = data.mWitnessInPursuit;
+            payload["witnessFightValue"] = data.mWitnessFightValue;
+            payload["victimFightValue"] = data.mVictimFightValue;
+            payload["observerFightRating"] = data.mObserverFightRating;
+            payload["fightTerm"] = data.mFightTerm;
+            payload["fightDispositionBias"] = data.mFightDispositionBias;
+            payload["fightDistanceBias"] = data.mFightDistanceBias;
+            payload["allowFightResponse"] = data.mAllowFightResponse;
+            if (!data.mFactionId.empty())
+                payload["factionId"] = data.mFactionId.serializeText();
+
+            sol::table defaults = view.newTable();
+            sol::table responseTable = view.newTable();
+            auto setBoolField = [&](const char* name, bool value) {
+                responseTable[name] = value;
+                defaults[name] = value;
+            };
+            auto setIntField = [&](const char* name, int value) {
+                responseTable[name] = value;
+                defaults[name] = value;
+            };
+
+            setBoolField("reportCrime", response.mReportCrime);
+            setBoolField("sayTrespassWarning", response.mSayTrespassWarning);
+            setBoolField("startPursuit", response.mStartPursuit);
+            setBoolField("setAlarmed", response.mSetAlarmed);
+            setBoolField("startCombat", response.mStartCombat);
+            setBoolField("assignCrimeId", response.mAssignCrimeId);
+            setBoolField("applyDisposition", response.mApplyDisposition);
+            setBoolField("dispositionIsPermanent", response.mDispositionIsPermanent);
+            setBoolField("dispositionOnlyIfHostile", response.mDispositionOnlyIfHostile);
+            setIntField("dispositionModifier", response.mDispositionModifier);
+            setIntField("fightModifier", response.mFightModifier);
+
+            payload["response"] = responseTable;
+            payload["defaultResponse"] = defaults;
+
+            mGlobalScripts.onCrimeWitnessed(payload);
+
+            auto readBool = [&](const char* name, bool current) {
+                sol::object value = responseTable[name];
+                if (value.is<bool>())
+                    return value.as<bool>();
+                return current;
+            };
+            auto readInt = [&](const char* name, int current) {
+                sol::object value = responseTable[name];
+                if (value.is<int>())
+                    return value.as<int>();
+                if (value.is<double>())
+                    return static_cast<int>(value.as<double>());
+                return current;
+            };
+
+            response.mReportCrime = readBool("reportCrime", response.mReportCrime);
+            response.mSayTrespassWarning = readBool("sayTrespassWarning", response.mSayTrespassWarning);
+            response.mStartPursuit = readBool("startPursuit", response.mStartPursuit);
+            response.mSetAlarmed = readBool("setAlarmed", response.mSetAlarmed);
+            response.mStartCombat = readBool("startCombat", response.mStartCombat);
+            response.mAssignCrimeId = readBool("assignCrimeId", response.mAssignCrimeId);
+            response.mApplyDisposition = readBool("applyDisposition", response.mApplyDisposition);
+            response.mDispositionIsPermanent = readBool("dispositionIsPermanent", response.mDispositionIsPermanent);
+            response.mDispositionOnlyIfHostile = readBool("dispositionOnlyIfHostile", response.mDispositionOnlyIfHostile);
+            response.mDispositionModifier = readInt("dispositionModifier", response.mDispositionModifier);
+            response.mFightModifier = readInt("fightModifier", response.mFightModifier);
+        });
+
+        data.mResponse = response;
     }
 
     void LuaManager::synchronizedUpdate()

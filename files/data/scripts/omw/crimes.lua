@@ -1,5 +1,19 @@
 local types = require('openmw.types')
 local I = require('openmw.interfaces')
+local crimeWitnessDefaults = require('scripts.omw.crime_witness_defaults')
+
+local responseFields = crimeWitnessDefaults.fields
+
+local function copyResponse(source, destination)
+    for _, field in ipairs(responseFields) do
+        destination[field] = source[field]
+    end
+end
+
+local function onCrimeWitnessed(data)
+    local defaults = crimeWitnessDefaults.build(data)
+    copyResponse(defaults, data.response)
+end
 
 ---
 -- Table with information needed to commit crimes.
@@ -57,6 +71,9 @@ return {
                 options.arg or 0, options.victimAware or false)
             return returnTable
         end,
+    },
+    engineHandlers = {
+        onCrimeWitnessed = onCrimeWitnessed,
     },
     eventHandlers = {
         CommitCrime = function(data) I.Crimes.commitCrime(data.player, data) end,

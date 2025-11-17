@@ -17,6 +17,8 @@ file(GLOB UNITTEST_SRC_FILES
     mwgui/tooltips.cpp
 
     mwscript/testscripts.cpp
+
+    mwmechanics/testcrimewitness.cpp
 )
 
 source_group(apps\\openmw-tests FILES ${UNITTEST_SRC_FILES})

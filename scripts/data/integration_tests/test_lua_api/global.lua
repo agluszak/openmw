@@ -6,6 +6,81 @@ local types = require('openmw.types')
 local vfs = require('openmw.vfs')
 local world = require('openmw.world')
 local I = require('openmw.interfaces')
+local crimeWitnessDefaults = require('scripts.omw.crime_witness_defaults')
+
+local responseFields = crimeWitnessDefaults.fields
+local crimeWitnessComparisonLog = {}
+local verifyCrimeWitnessDefaults = false
+local applyLuaCrimeWitnessResponse = false
+
+local function diffResponses(lhs, rhs)
+    local mismatches = {}
+    for _, field in ipairs(responseFields) do
+        if lhs[field] ~= rhs[field] then
+            table.insert(mismatches, {
+                field = field,
+                actual = lhs[field],
+                expected = rhs[field],
+            })
+        end
+    end
+    return mismatches
+end
+
+local function copyResponse(source, destination)
+    for _, field in ipairs(responseFields) do
+        destination[field] = source[field]
+    end
+end
+
+local function startCrimeWitnessVerification(applyResponse)
+    verifyCrimeWitnessDefaults = true
+    applyLuaCrimeWitnessResponse = applyResponse or false
+    crimeWitnessComparisonLog = {}
+end
+
+local function stopCrimeWitnessVerification()
+    verifyCrimeWitnessDefaults = false
+    applyLuaCrimeWitnessResponse = false
+end
+
+local function withCrimeWitnessVerification(fn)
+    startCrimeWitnessVerification()
+    local ok, err = pcall(fn)
+    stopCrimeWitnessVerification()
+    if not ok then
+        error(err, 2)
+    end
+end
+
+local lastCrimeWitnessEvent
+local forceCrimeReport = false
+
+local function onCrimeWitnessed(data)
+    lastCrimeWitnessEvent = {
+        typeId = data.typeId,
+        defaultReport = data.defaultResponse.reportCrime,
+        witnessId = data.witness.id,
+        witnessFightValue = data.witnessFightValue,
+        victimFightValue = data.victimFightValue,
+        fightDispositionBias = data.fightDispositionBias,
+        fightDistanceBias = data.fightDistanceBias,
+    }
+    if verifyCrimeWitnessDefaults then
+        local luaResponse = crimeWitnessDefaults.build(data)
+        crimeWitnessComparisonLog[data.witness.id] = {
+            computed = luaResponse,
+            defaults = data.defaultResponse,
+            mismatches = diffResponses(luaResponse, data.defaultResponse),
+        }
+        if applyLuaCrimeWitnessResponse then
+            copyResponse(luaResponse, data.response)
+        end
+    end
+    if forceCrimeReport then
+        data.response.reportCrime = true
+    end
+end
 
 testing.registerGlobalTest('crash in lua coroutine when accessing type (#8757)', function()
     local co = coroutine.wrap(function()
@@ -309,6 +384,115 @@ testing.registerGlobalTest('commit crime', function()
     testing.expectEqual(types.Player.getCrimeLevel(player), 0, "Crime level should not change if the victim's alarm value is low and there's no other witnesses")
 end)
 
+testing.registerGlobalTest('crime witness handler', function()
+    local player = initPlayer()
+    local victim = world.createObject(types.NPC.record(player).id)
+    victim:teleport(player.cell, player.position + util.vector3(0, 600, 0))
+    coroutine.yield()
+
+    types.Player.setCrimeLevel(player, 0)
+    lastCrimeWitnessEvent = nil
+    forceCrimeReport = false
+
+    I.Crimes.commitCrime(player, { victim = victim, type = types.Player.OFFENSE_TYPE.Theft, arg = 10 })
+    testing.expect(lastCrimeWitnessEvent ~= nil, 'crime witness event should fire when a victim observes a crime')
+    testing.expectEqual(types.Player.getCrimeLevel(player), 0, 'Default witness response should not add a bounty here')
+    testing.expectEqual(lastCrimeWitnessEvent.defaultReport, false, 'Victims with low Alarm should not report crimes by default')
+    testing.expectEqual(type(lastCrimeWitnessEvent.witnessFightValue), 'number', 'Witness fight GMST should be exposed')
+    testing.expectEqual(type(lastCrimeWitnessEvent.victimFightValue), 'number', 'Victim fight GMST should be exposed')
+    testing.expectEqual(type(lastCrimeWitnessEvent.fightDispositionBias), 'number', 'Fight disposition bias should be exposed')
+    testing.expectEqual(type(lastCrimeWitnessEvent.fightDistanceBias), 'number', 'Fight distance bias should be exposed')
+
+    forceCrimeReport = true
+    I.Crimes.commitCrime(player, { victim = victim, type = types.Player.OFFENSE_TYPE.Theft, arg = 10 })
+    testing.expectGreaterThan(types.Player.getCrimeLevel(player), 0, 'Crime witness handler should be able to force reporting')
+    types.Player.setCrimeLevel(player, 0)
+    forceCrimeReport = false
+end)
+
+local crimeWitnessNpcCounter = 0
+
+local function spawnCrimeWitnessNpc(player, options)
+    options = options or {}
+    crimeWitnessNpcCounter = crimeWitnessNpcCounter + 1
+    local baseRecord = types.NPC.record(player)
+    local draft = types.NPC.createRecordDraft({
+        template = baseRecord,
+        id = string.format('crime_witness_%d', crimeWitnessNpcCounter),
+        name = options.name or string.format('Crime Witness %d', crimeWitnessNpcCounter),
+    })
+    if options.class then
+        draft.class = options.class
+    end
+    local record = world.createRecord(draft)
+    local npc = world.createObject(record.id)
+    local offset = options.offset or util.vector3(0, 400 + 100 * crimeWitnessNpcCounter, 0)
+    npc:teleport(player.cell, player.position + offset)
+    coroutine.yield()
+    if options.alarm then
+        types.NPC.stats.ai.alarm(npc).base = options.alarm
+    end
+    if options.fight then
+        types.NPC.stats.ai.fight(npc).base = options.fight
+    end
+    return npc
+end
+
+local function expectCrimeWitnessMatchesDefault(witness, label)
+    local comparison = crimeWitnessComparisonLog[witness.id]
+    testing.expect(comparison ~= nil, string.format('%s: expected witness comparison entry', label))
+    if not comparison then
+        return
+    end
+    local mismatchCount = #comparison.mismatches
+    if mismatchCount > 0 then
+        local details = {}
+        for _, mismatch in ipairs(comparison.mismatches) do
+            table.insert(details, string.format('%s expected %s got %s', mismatch.field,
+                tostring(mismatch.expected), tostring(mismatch.actual)))
+        end
+        testing.expectEqual(mismatchCount, 0, string.format('%s mismatches: %s', label, table.concat(details, '; ')))
+    else
+        testing.expectEqual(mismatchCount, 0, string.format('%s mismatches', label))
+    end
+end
+
+testing.registerGlobalTest('crime witness lua defaults trespass guard', function()
+    local player = initPlayer()
+    types.Player.setCrimeLevel(player, 0)
+    local guard = spawnCrimeWitnessNpc(player, { class = 'guard', alarm = 100, offset = util.vector3(0, 700, 0) })
+    withCrimeWitnessVerification(function()
+        I.Crimes.commitCrime(player, { type = types.Player.OFFENSE_TYPE.Trespassing })
+        expectCrimeWitnessMatchesDefault(guard, 'trespass guard witness response')
+    end)
+end)
+
+testing.registerGlobalTest('crime witness lua defaults pickpocket guard', function()
+    local player = initPlayer()
+    types.Player.setCrimeLevel(player, 0)
+    local guard = spawnCrimeWitnessNpc(player, { class = 'guard', alarm = 100, offset = util.vector3(0, 800, 0) })
+    withCrimeWitnessVerification(function()
+        I.Crimes.commitCrime(player, {
+            victim = guard,
+            type = types.Player.OFFENSE_TYPE.Pickpocket,
+            arg = 25,
+            victimAware = true,
+        })
+        expectCrimeWitnessMatchesDefault(guard, 'pickpocket guard witness response')
+    end)
+end)
+
+testing.registerGlobalTest('crime witness lua defaults assault bystander', function()
+    local player = initPlayer()
+    types.Player.setCrimeLevel(player, 0)
+    local victim = spawnCrimeWitnessNpc(player, { offset = util.vector3(200, 400, 0), alarm = 0 })
+    local witness = spawnCrimeWitnessNpc(player, { offset = util.vector3(-200, 800, 0), alarm = 50 })
+    withCrimeWitnessVerification(function()
+        I.Crimes.commitCrime(player, { victim = victim, type = types.Player.OFFENSE_TYPE.Assault })
+        expectCrimeWitnessMatchesDefault(witness, 'assault bystander witness response')
+    end)
+end)
+
 testing.registerGlobalTest('record model property', function()
     local player = world.players[1]
     testing.expectEqual(types.NPC.record(player).model, 'meshes/basicplayer.dae')
@@ -389,6 +573,7 @@ end)
 return {
     engineHandlers = {
         onUpdate = testing.updateGlobal,
+        onCrimeWitnessed = onCrimeWitnessed,
     },
     eventHandlers = testing.globalEventHandlers,
 }
