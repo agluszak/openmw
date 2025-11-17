@@ -87,7 +87,8 @@ namespace MWMechanics
         int getHoursToRest() const override;
         ///< Calculate how many hours the player needs to rest in order to be fully healed
 
-        int getBarterOffer(const MWWorld::Ptr& ptr, int basePrice, bool buying) override;
+        int getBarterOffer(
+            const MWWorld::Ptr& ptr, int basePrice, bool buying, const BarterContext& context) override;
         ///< This is used by every service to determine the price of objects given the trading skills of the player and
         ///< NPC.
 

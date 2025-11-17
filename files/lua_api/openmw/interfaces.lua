@@ -19,6 +19,9 @@
 -- @field [parent=#interfaces] scripts.omw.combat.local#scripts.omw.combat.local Combat
 
 ---
+-- @field [parent=#interfaces] scripts.omw.trade.pricing#scripts.omw.trade.pricing Barter
+
+---
 -- @field [parent=#interfaces] scripts.omw.mwui.init#scripts.omw.mwui.init MWUI
 
 ---

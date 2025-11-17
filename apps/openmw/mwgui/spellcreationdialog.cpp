@@ -23,6 +23,7 @@
 #include "../mwworld/store.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
+#include "../mwmechanics/bartercontext.hpp"
 #include "../mwmechanics/creaturestats.hpp"
 #include "../mwmechanics/spellutil.hpp"
 
@@ -728,7 +729,9 @@ namespace MWGui
         float fSpellMakingValueMult = store.get<ESM::GameSetting>().find("fSpellMakingValueMult")->mValue.getFloat();
 
         int price = std::max(1, static_cast<int>(y * fSpellMakingValueMult));
-        price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
+        MWMechanics::BarterContext context = MWMechanics::BarterContext::make<MWMechanics::SpellCreationContext>();
+        context.get<MWMechanics::SpellCreationContext>().mEffectCost = y;
+        price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true, context);
 
         mPriceLabel->setCaption(MyGUI::utility::toString(int(price)));
 

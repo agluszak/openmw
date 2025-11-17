@@ -22,6 +22,7 @@
 #include "../mwworld/esmstore.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
+#include "../mwmechanics/bartercontext.hpp"
 #include "../mwmechanics/creaturestats.hpp"
 
 #include "containeritemmodel.hpp"
@@ -624,10 +625,15 @@ namespace MWGui
         for (const ItemStack& itemStack : playerBorrowed)
         {
             const int basePrice = getEffectiveValue(itemStack.mBase, itemStack.mCount);
+            MWMechanics::BarterContext context = MWMechanics::BarterContext::make<MWMechanics::TradeContext>();
+            auto& trade = context.get<MWMechanics::TradeContext>();
+            trade.mCount = static_cast<int>(itemStack.mCount);
+            trade.mItem = itemStack.mBase;
             const int cap
                 = static_cast<int>(std::max(1.f, 0.75f * basePrice)); // Minimum buying price -- 75% of the base
             const int buyingPrice
-                = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, basePrice, true);
+                = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(
+                    mPtr, basePrice, true, context);
             merchantOffer -= std::max(cap, buyingPrice);
         }
 
@@ -635,10 +641,15 @@ namespace MWGui
         for (const ItemStack& itemStack : merchantBorrowed)
         {
             const int basePrice = getEffectiveValue(itemStack.mBase, itemStack.mCount);
+            MWMechanics::BarterContext context = MWMechanics::BarterContext::make<MWMechanics::TradeContext>();
+            auto& trade = context.get<MWMechanics::TradeContext>();
+            trade.mCount = static_cast<int>(itemStack.mCount);
+            trade.mItem = itemStack.mBase;
             const int cap
                 = static_cast<int>(std::max(1.f, 0.75f * basePrice)); // Maximum selling price -- 75% of the base
             const int sellingPrice
-                = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, basePrice, false);
+                = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(
+                    mPtr, basePrice, false, context);
             merchantOffer += mPtr.getClass().isNpc() ? std::min(cap, sellingPrice) : sellingPrice;
         }
 

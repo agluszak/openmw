@@ -1,6 +1,8 @@
 #ifndef MWLUA_GLOBALSCRIPTS_H
 #define MWLUA_GLOBALSCRIPTS_H
 
+#include <optional>
+
 #include <components/lua/luastate.hpp>
 #include <components/lua/scriptscontainer.hpp>
 
@@ -41,6 +43,12 @@ namespace MWLua
             callEngineHandlers(mOnUseItemHandlers, obj, actor, force);
         }
         void onNewExterior(const GCell& cell) { callEngineHandlers(mOnNewExteriorHandlers, cell); }
+
+        template <typename T, typename... Args>
+        std::optional<T> callInterface(std::string_view interfaceName, std::string_view identifier, const Args&... args)
+        {
+            return ScriptsContainer::callInterface<T>(interfaceName, identifier, args...);
+        }
 
     private:
         EngineHandlerList mObjectActiveHandlers{ "onObjectActive" };

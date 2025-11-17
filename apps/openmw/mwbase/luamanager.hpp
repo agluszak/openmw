@@ -3,12 +3,14 @@
 
 #include <filesystem>
 #include <map>
+#include <optional>
 #include <string>
 #include <variant>
 
 #include <SDL_events.h>
 
 #include "../mwgui/mode.hpp"
+#include "../mwmechanics/bartercontext.hpp"
 #include "../mwmechanics/damagesourcetype.hpp"
 #include "../mwrender/animationpriority.hpp"
 #include <components/sdlutil/events.hpp>
@@ -88,6 +90,10 @@ namespace MWBase
         // `arg` is either forwarded from MWGui::pushGuiMode or empty
         virtual void uiModeChanged(const MWWorld::Ptr& arg) = 0;
         virtual void savePermanentStorage(const std::filesystem::path& userConfigPath) = 0;
+
+        virtual std::optional<int> calcBarterPrice(const MWWorld::Ptr& merchant, const MWWorld::Ptr& player,
+            int basePrice, bool buying, const MWMechanics::BarterContext& context)
+            = 0;
 
         // TODO: notify LuaManager about other events
         // virtual void objectOnHit(const MWWorld::Ptr &ptr, float damage, bool ishealth, const MWWorld::Ptr &object,

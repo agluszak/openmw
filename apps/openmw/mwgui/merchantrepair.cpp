@@ -12,6 +12,7 @@
 #include "../mwbase/windowmanager.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
+#include "../mwmechanics/bartercontext.hpp"
 #include "../mwmechanics/creaturestats.hpp"
 
 #include "../mwworld/class.hpp"
@@ -80,7 +81,14 @@ namespace MWGui
                 x = static_cast<int>(fRepairMult * x);
                 x = std::max(1, x);
 
-                int price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mActor, x, true);
+                MWMechanics::BarterContext context = MWMechanics::BarterContext::make<MWMechanics::RepairContext>();
+                auto& repair = context.get<MWMechanics::RepairContext>();
+                repair.mItem = *iter;
+                repair.mBaseValue = basePrice;
+                repair.mCurrentCondition = durability;
+                repair.mMaxCondition = maxDurability;
+                int price
+                    = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mActor, x, true, context);
 
                 std::string name{ iter->getClass().getName(*iter) };
                 name += "  - " + MyGUI::utility::toString(price)

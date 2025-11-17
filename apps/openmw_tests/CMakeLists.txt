@@ -16,6 +16,8 @@ file(GLOB UNITTEST_SRC_FILES
 
     mwgui/tooltips.cpp
 
+    mwmechanics/testbarter.cpp
+
     mwscript/testscripts.cpp
 )
 
