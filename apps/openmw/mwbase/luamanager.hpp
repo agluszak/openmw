@@ -6,8 +6,11 @@
 #include <string>
 #include <variant>
 
+#include <osg/Vec3f>
+
 #include <SDL_events.h>
 
+#include "mechanicsmanager.hpp"
 #include "../mwgui/mode.hpp"
 #include "../mwmechanics/damagesourcetype.hpp"
 #include "../mwrender/animationpriority.hpp"
@@ -47,6 +50,46 @@ namespace osg
 
 namespace MWBase
 {
+    struct CrimeWitnessResponse
+    {
+        bool mReportCrime = false;
+        bool mSayTrespassWarning = false;
+        bool mStartPursuit = false;
+        bool mSetAlarmed = false;
+        bool mStartCombat = false;
+        bool mAssignCrimeId = false;
+        bool mApplyDisposition = false;
+        bool mDispositionIsPermanent = false;
+        bool mDispositionOnlyIfHostile = false;
+        int mDispositionModifier = 0;
+        int mFightModifier = 0;
+    };
+
+    struct CrimeWitness
+    {
+        MWWorld::Ptr mPlayer;
+        MWWorld::Ptr mWitness;
+        MWWorld::Ptr mVictim;
+        MechanicsManager::OffenseType mType = MechanicsManager::OT_Theft;
+        ESM::RefId mFactionId;
+        int mValue = 0;
+        int mAlarm = 0;
+        int mWitnessDisposition = 0;
+        float mDispositionTerm = 0.f;
+        osg::Vec3f mCrimePosition;
+        bool mWitnessIsGuard = false;
+        bool mWitnessIsVictim = false;
+        bool mWitnessInPursuit = false;
+        int mWitnessFightValue = 0;
+        int mVictimFightValue = 0;
+        int mObserverFightRating = 0;
+        float mFightTerm = 0.f;
+        float mFightDispositionBias = 0.f;
+        float mFightDistanceBias = 0.f;
+        bool mAllowFightResponse = false;
+        CrimeWitnessResponse mResponse;
+    };
+
     // \brief LuaManager is the central interface through which the engine invokes lua scripts.
     //
     // The native side invokes functions on this interface, which queues events to be handled by the
@@ -85,6 +128,7 @@ namespace MWBase
         virtual void exteriorCreated(MWWorld::CellStore& cell) = 0;
         virtual void actorDied(const MWWorld::Ptr& actor) = 0;
         virtual void questUpdated(const ESM::RefId& questId, int stage) = 0;
+        virtual void onCrimeWitnessed(CrimeWitness& data) = 0;
         // `arg` is either forwarded from MWGui::pushGuiMode or empty
         virtual void uiModeChanged(const MWWorld::Ptr& arg) = 0;
         virtual void savePermanentStorage(const std::filesystem::path& userConfigPath) = 0;

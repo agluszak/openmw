@@ -64,6 +64,25 @@ Engine handler is a function defined by a script, that can be called by the engi
     - Object is activated by an actor.
   * - onNewExterior(cell)
     - A new exterior cell not defined by a content file has been generated.
+  * - onCrimeWitnessed(data)
+    - | Called when an NPC reacts to a crime committed by the player.
+      | ``data`` contains read-only context fields (``player``, ``witness``, ``victim``, ``type``, ``typeId``, ``value``,
+      | ``factionId``, ``alarm``, ``position``, ``isWitnessGuard``, ``isWitnessVictim``, ``currentDisposition``,
+      | ``dispositionTerm``, ``witnessInPursuit``, ``witnessFightValue``, ``victimFightValue``, ``observerFightRating``,
+      | ``fightTerm``, ``fightDispositionBias``, ``fightDistanceBias`` and ``allowFightResponse``) and two
+      | tables named ``response`` and ``defaultResponse``. ``response`` starts as a copy of ``defaultResponse`` and can be
+      | modified to control the standard reactions:
+      |
+      |   * ``reportCrime`` – add or suppress reporting the crime (affects the player's bounty).
+      |   * ``sayTrespassWarning`` – whether the witness should shout the "intruder" line.
+      |   * ``startPursuit`` – request the witness to pursue and attempt to arrest the player.
+      |   * ``setAlarmed`` – toggle the alarm flag used by dialogue.
+      |   * ``startCombat`` and ``fightModifier`` – initiate combat and optionally adjust the witness' base fight rating.
+      |   * ``assignCrimeId`` – whether to remember the crime for later amnesty.
+      |   * ``applyDisposition`` / ``dispositionIsPermanent`` / ``dispositionOnlyIfHostile`` / ``dispositionModifier`` –
+      |     control disposition penalties applied immediately or only after hostilities begin.
+      | The built-in ``scripts.omw.crimes`` global script automatically applies ``scripts.omw.crime_witness_defaults`` to
+      | reproduce the legacy behavior, and mods can require the same module to build on top of those defaults.
 
 **Only for local scripts**
 

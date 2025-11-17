@@ -103,6 +103,7 @@ namespace MWLua
         }
         void objectTeleported(const MWWorld::Ptr& ptr) override;
         void questUpdated(const ESM::RefId& questId, int stage) override;
+        void onCrimeWitnessed(MWBase::CrimeWitness& data) override;
         void uiModeChanged(const MWWorld::Ptr& arg) override;
         void actorDied(const MWWorld::Ptr& actor) override;
 

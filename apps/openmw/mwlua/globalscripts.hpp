@@ -24,6 +24,7 @@ namespace MWLua
                 &mOnActivateHandlers,
                 &mOnUseItemHandlers,
                 &mOnNewExteriorHandlers,
+                &mOnCrimeWitnessedHandlers,
             });
         }
 
@@ -41,6 +42,7 @@ namespace MWLua
             callEngineHandlers(mOnUseItemHandlers, obj, actor, force);
         }
         void onNewExterior(const GCell& cell) { callEngineHandlers(mOnNewExteriorHandlers, cell); }
+        void onCrimeWitnessed(const sol::table& data) { callEngineHandlers(mOnCrimeWitnessedHandlers, data); }
 
     private:
         EngineHandlerList mObjectActiveHandlers{ "onObjectActive" };
@@ -51,6 +53,7 @@ namespace MWLua
         EngineHandlerList mOnActivateHandlers{ "onActivate" };
         EngineHandlerList mOnUseItemHandlers{ "_onUseItem" };
         EngineHandlerList mOnNewExteriorHandlers{ "onNewExterior" };
+        EngineHandlerList mOnCrimeWitnessedHandlers{ "onCrimeWitnessed" };
     };
 
 }
