@@ -1407,6 +1407,8 @@ namespace MWMechanics
             }
 
             bool setCrimeId = response.mAssignCrimeId;
+            if (response.mReportCrime && isActorGuard)
+                setCrimeId = true;
 
             if (response.mApplyDisposition && response.mDispositionModifier != 0)
             {

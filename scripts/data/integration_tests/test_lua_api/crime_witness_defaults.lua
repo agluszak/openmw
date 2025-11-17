@@ -45,6 +45,9 @@ local function build(data)
 
     local guardHandlingPursuit = isGuard and alarm >= 100
     response.reportCrime = alarm >= 100
+    if response.reportCrime and isGuard then
+        response.assignCrimeId = true
+    end
     if response.reportCrime and typeId == OffenseType.Trespassing then
         response.sayTrespassWarning = true
     end

@@ -20,6 +20,8 @@ namespace MWMechanics
 
         const bool guardHandlingPursuit = context.mWitnessIsGuard && context.mAlarm >= 100;
         response.mReportCrime = context.mAlarm >= 100;
+        if (response.mReportCrime && context.mWitnessIsGuard)
+            response.mAssignCrimeId = true;
         response.mSayTrespassWarning = response.mReportCrime && isTrespassing(context.mCrimeType);
 
         const float alarmTerm = 0.01f * static_cast<float>(context.mAlarm);

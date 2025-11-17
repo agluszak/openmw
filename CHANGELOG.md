@@ -15,6 +15,7 @@
     Feature: Lua: Add onCrimeWitnessed handler to customize witness reactions
     Feature: Lua: Expose full crime witness context so Lua can reproduce default responses and add parity tests
     Feature: Lua: Ship default crime witness handler and expose fight tuning terms to scripts
+    Bug: Guards already pursuing the player now refresh their crime IDs when they report a new crime
     Task #8718: Lua: Cell fields can still return empty strings instead of nil values
 
 0.50.0

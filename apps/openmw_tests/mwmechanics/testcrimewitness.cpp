@@ -32,6 +32,7 @@ namespace
         auto response = buildCrimeWitnessResponse(context);
         EXPECT_TRUE(response.mReportCrime);
         EXPECT_TRUE(response.mSayTrespassWarning);
+        EXPECT_TRUE(response.mAssignCrimeId);
         EXPECT_TRUE(response.mStartPursuit);
         EXPECT_TRUE(response.mSetAlarmed);
         EXPECT_FALSE(response.mStartCombat);
