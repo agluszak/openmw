@@ -25,6 +25,8 @@
 #include "../mwbase/windowmanager.hpp"
 #include "../mwbase/world.hpp"
 
+#include "../mwmechanics/bartercontext.hpp"
+
 #include "../mwrender/bonegroup.hpp"
 #include "../mwrender/postprocessor.hpp"
 
@@ -446,6 +448,80 @@ namespace MWLua
         if (actor.isEmpty())
             return;
         mLuaEvents.addLocalEvent({ getId(actor), "Died", {} });
+    }
+
+    std::optional<int> LuaManager::calcBarterPrice(const MWWorld::Ptr& merchant, const MWWorld::Ptr& player,
+        int basePrice, bool buying, const MWMechanics::BarterContext& context)
+    {
+        if (!mGlobalScriptsStarted)
+            return std::nullopt;
+
+        sol::table overrides = sol::nil;
+        mLua.protectedCall([&](LuaUtil::LuaView& view) {
+            sol::table ctx = view.newTable();
+            ctx["type"] = std::string(MWMechanics::barterTypeToString(context.getType()));
+            ctx["count"] = 1;
+            auto appendItemData = [&](const MWMechanics::ItemContext& itemContext) {
+                if (itemContext.mItem)
+                    ctx["item"] = GObject(*itemContext.mItem);
+                if (itemContext.mItemData)
+                    ctx["itemData"] = GObject(*itemContext.mItemData);
+            };
+
+            if (const auto* trade = context.tryGet<MWMechanics::TradeContext>())
+            {
+                ctx["count"] = trade->mCount;
+                appendItemData(*trade);
+            }
+            if (const auto* training = context.tryGet<MWMechanics::TrainingContext>())
+            {
+                sol::table trainingTable = view.newTable();
+                trainingTable["skillId"] = training->mSkillId.serializeText();
+                trainingTable["skillValue"] = training->mSkillValue;
+                ctx["training"] = trainingTable;
+            }
+            if (const auto* repair = context.tryGet<MWMechanics::RepairContext>())
+            {
+                appendItemData(*repair);
+                sol::table repairTable = view.newTable();
+                repairTable["baseValue"] = repair->mBaseValue;
+                repairTable["currentCondition"] = repair->mCurrentCondition;
+                repairTable["maxCondition"] = repair->mMaxCondition;
+                ctx["repair"] = repairTable;
+            }
+            if (const auto* travel = context.tryGet<MWMechanics::TravelContext>())
+            {
+                sol::table travelTable = view.newTable();
+                travelTable["distance"] = travel->mDistance;
+                travelTable["mageGuild"] = travel->mMageGuild;
+                travelTable["followers"] = travel->mFollowerCount;
+                ctx["travel"] = travelTable;
+            }
+            if (const auto* spellPurchase = context.tryGet<MWMechanics::SpellPurchaseContext>())
+            {
+                sol::table spell = view.newTable();
+                spell["spellCost"] = spellPurchase->mSpellCost;
+                ctx["spellPurchase"] = spell;
+            }
+            if (const auto* spellCreation = context.tryGet<MWMechanics::SpellCreationContext>())
+            {
+                sol::table spell = view.newTable();
+                spell["effectCost"] = spellCreation->mEffectCost;
+                ctx["spellCreation"] = spell;
+            }
+            if (const auto* enchanting = context.tryGet<MWMechanics::EnchantingContext>())
+            {
+                sol::table enchantingTable = view.newTable();
+                enchantingTable["effectCost"] = enchanting->mEffectCost;
+                enchantingTable["itemCount"] = enchanting->mItemCount;
+                enchantingTable["typeMultiplier"] = enchanting->mTypeMultiplier;
+                ctx["enchanting"] = enchantingTable;
+            }
+            overrides = ctx;
+        });
+
+        return mGlobalScripts.callInterface<int>("Barter", "calcBarterPrice", GObject(merchant), GObject(player),
+            basePrice, buying, overrides);
     }
 
     void LuaManager::useItem(const MWWorld::Ptr& object, const MWWorld::Ptr& actor, bool force)

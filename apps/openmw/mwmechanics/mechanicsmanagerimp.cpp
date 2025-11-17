@@ -1,6 +1,7 @@
 #include "mechanicsmanagerimp.hpp"
 
 #include <cassert>
+#include <optional>
 
 #include <osg/Stats>
 
@@ -24,6 +25,7 @@
 
 #include "../mwbase/dialoguemanager.hpp"
 #include "../mwbase/environment.hpp"
+#include "../mwbase/luamanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/statemanager.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -34,6 +36,7 @@
 #include "actor.hpp"
 #include "actors.hpp"
 #include "actorutil.hpp"
+#include "bartercontext.hpp"
 #include "aicombat.hpp"
 #include "aipursue.hpp"
 #include "autocalcspell.hpp"
@@ -570,7 +573,8 @@ namespace MWMechanics
         return static_cast<int>(x);
     }
 
-    int MechanicsManager::getBarterOffer(const MWWorld::Ptr& ptr, int basePrice, bool buying)
+    int MechanicsManager::getBarterOffer(
+        const MWWorld::Ptr& ptr, int basePrice, bool buying, const BarterContext& context)
     {
         // Make sure zero base price items/services can't be bought/sold for 1 gold
         // and return the intended base price for creature merchants
@@ -581,6 +585,13 @@ namespace MWMechanics
 
         MWWorld::Ptr playerPtr = getPlayer();
         const MWMechanics::NpcStats& playerStats = playerPtr.getClass().getNpcStats(playerPtr);
+
+        if (MWBase::LuaManager* luaManager = MWBase::Environment::get().getLuaManager())
+        {
+            if (std::optional<int> luaPrice
+                = luaManager->calcBarterPrice(ptr, playerPtr, basePrice, buying, context))
+                return *luaPrice;
+        }
 
         // I suppose the temporary disposition change (second param to getDerivedDisposition()) _has_ to be considered
         // here, otherwise one would get different prices when exiting and re-entering the dialogue window...

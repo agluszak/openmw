@@ -8,6 +8,9 @@
   * - :doc:`Activation </reference/lua-scripting/interface_activation>`
     - |bdg-ctx-global|
     - Allows to extend or override built-in activation mechanics.
+  * - :doc:`Barter </reference/lua-scripting/interface_barter>`
+    - |bdg-ctx-global|
+    - Customize barter price calculations.
   * - :doc:`AI </reference/lua-scripting/interface_ai>`
     - |bdg-ctx-local|
     - Control basic AI of NPCs and creatures.

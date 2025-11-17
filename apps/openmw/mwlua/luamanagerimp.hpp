@@ -108,6 +108,9 @@ namespace MWLua
 
         MWBase::LuaManager::ActorControls* getActorControls(const MWWorld::Ptr&) const override;
 
+        std::optional<int> calcBarterPrice(const MWWorld::Ptr& merchant, const MWWorld::Ptr& player, int basePrice,
+            bool buying, const MWMechanics::BarterContext& context) override;
+
         void clear() override; // should be called before loading game or starting a new game to reset internal state.
         void setupPlayer(const MWWorld::Ptr& ptr) override; // Should be called once after each "clear".
 

@@ -8,6 +8,7 @@ Interfaces
     :hidden:
 
     Activation <interface_activation>
+    Barter <interface_barter>
     AI <interface_ai>
     AnimationController <interface_animation>
     Camera <interface_camera>

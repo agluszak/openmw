@@ -24,6 +24,7 @@
 #include "../mwworld/worldmodel.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
+#include "../mwmechanics/bartercontext.hpp"
 #include "../mwmechanics/creaturestats.hpp"
 
 namespace MWGui
@@ -56,20 +57,22 @@ namespace MWGui
         MWWorld::Ptr player = MWBase::Environment::get().getWorld()->getPlayerPtr();
         int playerGold = player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId);
 
-        if (!mPtr.getCell()->isExterior())
+        bool mageGuild = !mPtr.getCell()->isExterior();
+        float distance = 0.f;
+        if (mageGuild)
         {
             price = gmst.find("fMagesGuildTravel")->mValue.getInteger();
         }
         else
         {
             const ESM::Position playerPos = player.getRefData().getPosition();
-            float d = sqrt(pow(pos.pos[0] - playerPos.pos[0], 2) + pow(pos.pos[1] - playerPos.pos[1], 2)
+            distance = sqrt(pow(pos.pos[0] - playerPos.pos[0], 2) + pow(pos.pos[1] - playerPos.pos[1], 2)
                 + pow(pos.pos[2] - playerPos.pos[2], 2));
             float fTravelMult = gmst.find("fTravelMult")->mValue.getFloat();
             if (fTravelMult != 0)
-                price = static_cast<int>(d / fTravelMult);
+                price = static_cast<int>(distance / fTravelMult);
             else
-                price = static_cast<int>(d);
+                price = static_cast<int>(distance);
         }
 
         // Add price for the travelling followers
@@ -80,7 +83,12 @@ namespace MWGui
         price *= 1 + static_cast<int>(followers.size());
 
         price = std::max(1, price);
-        price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
+        MWMechanics::BarterContext context = MWMechanics::BarterContext::make<MWMechanics::TravelContext>();
+        auto& travel = context.get<MWMechanics::TravelContext>();
+        travel.mDistance = distance;
+        travel.mMageGuild = mageGuild;
+        travel.mFollowerCount = static_cast<int>(followers.size());
+        price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true, context);
 
         const int lineHeight = Settings::gui().mFontSize + 2;
 

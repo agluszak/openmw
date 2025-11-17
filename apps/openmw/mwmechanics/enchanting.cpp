@@ -14,6 +14,7 @@
 #include "../mwbase/world.hpp"
 
 #include "actorutil.hpp"
+#include "bartercontext.hpp"
 #include "creaturestats.hpp"
 #include "spellutil.hpp"
 #include "weapontype.hpp"
@@ -298,8 +299,13 @@ namespace MWMechanics
                                    ->get<ESM::GameSetting>()
                                    .find("fEnchantmentValueMult")
                                    ->mValue.getFloat();
+        MWMechanics::BarterContext context = MWMechanics::BarterContext::make<MWMechanics::EnchantingContext>();
+        auto& enchanting = context.get<MWMechanics::EnchantingContext>();
+        enchanting.mEffectCost = finalEffectCost;
+        enchanting.mItemCount = count;
+        enchanting.mTypeMultiplier = getTypeMultiplier();
         int price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(
-            mEnchanter, static_cast<int>(finalEffectCost * priceMultipler), true);
+            mEnchanter, static_cast<int>(finalEffectCost * priceMultipler), true, context);
         price *= count * getTypeMultiplier();
         return std::max(1, price);
     }

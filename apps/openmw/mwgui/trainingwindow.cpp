@@ -15,6 +15,7 @@
 #include "../mwworld/esmstore.hpp"
 
 #include "../mwmechanics/actorutil.hpp"
+#include "../mwmechanics/bartercontext.hpp"
 #include "../mwmechanics/npcstats.hpp"
 
 #include <components/esm3/loadclas.hpp>
@@ -115,10 +116,14 @@ namespace MWGui
         for (size_t i = 0; i < skills.size(); ++i)
         {
             const ESM::Skill* skill = skills[i].first;
-            int price = static_cast<int>(
-                pcStats.getSkill(skill->mId).getBase() * gmst.find("iTrainingMod")->mValue.getInteger());
+            const int skillValue = pcStats.getSkill(skill->mId).getBase();
+            int price = static_cast<int>(skillValue * gmst.find("iTrainingMod")->mValue.getInteger());
             price = std::max(1, price);
-            price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
+            MWMechanics::BarterContext context = MWMechanics::BarterContext::make<MWMechanics::TrainingContext>();
+            auto& training = context.get<MWMechanics::TrainingContext>();
+            training.mSkillId = skill->mId;
+            training.mSkillValue = skillValue;
+            price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true, context);
 
             MyGUI::Button* button = mTrainingOptions->createWidget<MyGUI::Button>(price <= playerGold
                     ? "SandTextButton"
@@ -169,9 +174,13 @@ namespace MWGui
 
         const MWWorld::ESMStore& store = *MWBase::Environment::get().getESMStore();
 
-        int price = pcStats.getSkill(skill->mId).getBase()
-            * store.get<ESM::GameSetting>().find("iTrainingMod")->mValue.getInteger();
-        price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true);
+        const int skillValue = pcStats.getSkill(skill->mId).getBase();
+        int price = skillValue * store.get<ESM::GameSetting>().find("iTrainingMod")->mValue.getInteger();
+        MWMechanics::BarterContext context = MWMechanics::BarterContext::make<MWMechanics::TrainingContext>();
+        auto& training = context.get<MWMechanics::TrainingContext>();
+        training.mSkillId = skill->mId;
+        training.mSkillValue = skillValue;
+        price = MWBase::Environment::get().getMechanicsManager()->getBarterOffer(mPtr, price, true, context);
 
         if (price > player.getClass().getContainerStore(player).count(MWWorld::ContainerStore::sGoldId))
             return;

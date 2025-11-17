@@ -8,6 +8,7 @@
 #include <string_view>
 #include <vector>
 
+#include "../mwmechanics/bartercontext.hpp"
 #include "../mwworld/ptr.hpp"
 
 namespace osg
@@ -93,9 +94,12 @@ namespace MWBase
         virtual int getHoursToRest() const = 0;
         ///< Calculate how many hours the player needs to rest in order to be fully healed
 
-        virtual int getBarterOffer(const MWWorld::Ptr& ptr, int basePrice, bool buying) = 0;
+        virtual int getBarterOffer(const MWWorld::Ptr& ptr, int basePrice, bool buying,
+            const MWMechanics::BarterContext& context)
+            = 0;
         ///< This is used by every service to determine the price of objects given the trading skills of the player and
         ///< NPC.
+        /// @param buying ``true`` when the player is buying from the merchant.
 
         virtual int getDerivedDisposition(const MWWorld::Ptr& ptr, bool clamp = true) = 0;
         ///< Calculate the diposition of an NPC toward the player.
