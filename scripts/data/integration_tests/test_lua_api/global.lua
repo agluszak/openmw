@@ -307,6 +307,19 @@ testing.registerGlobalTest('commit crime', function()
     types.Player.setCrimeLevel(player, 0)
     testing.expectEqual(I.Crimes.commitCrime(player, { victim = victim, type = types.Player.OFFENSE_TYPE.Theft, arg = 50 }).wasCrimeSeen, true, "Running a crime with a valid victim should notify them when the player is not sneaking, even if it's not explicitly passed in")
     testing.expectEqual(types.Player.getCrimeLevel(player), 0, "Crime level should not change if the victim's alarm value is low and there's no other witnesses")
+
+    local witnessCalled = false
+    local witnessHandler = I.Crimes.addWitnessHandler(function(data)
+        witnessCalled = true
+        testing.expectEqual(data.witness == victim, true, 'Victim should be reported as the witness')
+        testing.expectEqual(data.type, 'theft', 'Crime witness data should expose the crime type as text')
+        return false
+    end)
+
+    types.Player.setCrimeLevel(player, 0)
+    testing.expectEqual(I.Crimes.commitCrime(player, { victim = victim, type = types.Player.OFFENSE_TYPE.Theft, arg = 50 }).wasCrimeSeen, false, 'A witness handler returning false should hide the crime')
+    testing.expectEqual(witnessCalled, true, 'Witness handler should be triggered when crime is detected')
+    I.Crimes.removeWitnessHandler(witnessHandler)
 end)
 
 testing.registerGlobalTest('record model property', function()

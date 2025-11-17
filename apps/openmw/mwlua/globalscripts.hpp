@@ -42,6 +42,12 @@ namespace MWLua
         }
         void onNewExterior(const GCell& cell) { callEngineHandlers(mOnNewExteriorHandlers, cell); }
 
+        template <typename T, typename... Args>
+        std::optional<T> callInterface(std::string_view interfaceName, std::string_view identifier, const Args&... args)
+        {
+            return ScriptsContainer::callInterface<T>(interfaceName, identifier, args...);
+        }
+
     private:
         EngineHandlerList mObjectActiveHandlers{ "onObjectActive" };
         EngineHandlerList mActorActiveHandlers{ "onActorActive" };

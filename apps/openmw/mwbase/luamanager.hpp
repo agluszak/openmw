@@ -11,6 +11,7 @@
 #include "../mwgui/mode.hpp"
 #include "../mwmechanics/damagesourcetype.hpp"
 #include "../mwrender/animationpriority.hpp"
+#include "mechanicsmanager.hpp"
 #include <components/sdlutil/events.hpp>
 
 namespace MWWorld
@@ -136,6 +137,25 @@ namespace MWBase
         };
 
         virtual ActorControls* getActorControls(const MWWorld::Ptr&) const = 0;
+
+        struct CrimeWitnessEvent
+        {
+            MWWorld::Ptr mCriminal;
+            MWWorld::Ptr mWitness;
+            MWWorld::Ptr mVictim;
+            MechanicsManager::OffenseType mType = MechanicsManager::OT_Theft;
+            ESM::RefId mFactionId;
+            int mValue = 0;
+            bool mVictimAware = false;
+            bool mIsVictimWitness = false;
+            bool mHadLineOfSight = false;
+            bool mAwarenessPassed = false;
+            osg::Vec3f mCrimePosition;
+        };
+
+        /// Notifies Lua that a crime was seen by a witness. Returns true if the default witness
+        /// reaction should continue, or false to ignore this witness entirely.
+        virtual bool crimeWitnessed(const CrimeWitnessEvent& event) = 0;
 
         virtual void clear() = 0;
         virtual void setupPlayer(const MWWorld::Ptr&) = 0;

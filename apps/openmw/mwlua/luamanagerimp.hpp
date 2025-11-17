@@ -107,6 +107,7 @@ namespace MWLua
         void actorDied(const MWWorld::Ptr& actor) override;
 
         MWBase::LuaManager::ActorControls* getActorControls(const MWWorld::Ptr&) const override;
+        bool crimeWitnessed(const MWBase::LuaManager::CrimeWitnessEvent& event) override;
 
         void clear() override; // should be called before loading game or starting a new game to reset internal state.
         void setupPlayer(const MWWorld::Ptr& ptr) override; // Should be called once after each "clear".

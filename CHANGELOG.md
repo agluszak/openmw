@@ -12,6 +12,7 @@
     Feature #8725: Lua: Expose localized cell names
     Feature #8731: Use Hand to Hand Hit 2 sound
     Feature #8788: Dehardcode script settings window font and colors
+    Feature #8813: Lua: Allow scripts to override crime witness reactions
     Task #8718: Lua: Cell fields can still return empty strings instead of nil values
 
 0.50.0

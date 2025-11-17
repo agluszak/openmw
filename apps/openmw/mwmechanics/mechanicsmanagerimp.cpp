@@ -24,6 +24,7 @@
 
 #include "../mwbase/dialoguemanager.hpp"
 #include "../mwbase/environment.hpp"
+#include "../mwbase/luamanager.hpp"
 #include "../mwbase/soundmanager.hpp"
 #include "../mwbase/statemanager.hpp"
 #include "../mwbase/windowmanager.hpp"
@@ -1161,6 +1162,8 @@ namespace MWMechanics
         osg::Vec3f from(player.getRefData().getPosition().asVec3());
         const MWWorld::ESMStore& esmStore = *MWBase::Environment::get().getESMStore();
         float radius = esmStore.get<ESM::GameSetting>().find("fAlarmRadius")->mValue.getFloat();
+        MWBase::World* world = MWBase::Environment::get().getWorld();
+        MWBase::LuaManager* luaManager = MWBase::Environment::get().getLuaManager();
 
         mActors.getObjectsInRange(from, radius, neighbors);
 
@@ -1179,19 +1182,51 @@ namespace MWMechanics
             if (!canReportCrime(neighbor, victim, playerFollowers))
                 continue;
 
-            if ((neighbor == victim && victimAware)
-                // Murder crime can be reported even if no one saw it (hearing is enough, I guess).
-                // TODO: Add mod support for stealth executions!
-                || (type == OT_Murder && neighbor != victim)
-                || (MWBase::Environment::get().getWorld()->getLOS(player, neighbor)
-                    && awarenessCheck(player, neighbor)))
-            {
-                // NPC will complain about theft even if he will do nothing about it
-                if (type == OT_Theft || type == OT_Pickpocket)
-                    MWBase::Environment::get().getDialogueManager()->say(neighbor, ESM::RefId::stringRefId("thief"));
+            const bool isVictim = neighbor == victim;
+            bool hadLineOfSight = false;
+            bool awarenessPassed = false;
+            bool detected = false;
 
-                crimeSeen = true;
+            if (isVictim && victimAware)
+                detected = true;
+            else if (type == OT_Murder && !isVictim)
+                detected = true;
+            else
+            {
+                hadLineOfSight = world->getLOS(player, neighbor);
+                if (hadLineOfSight)
+                {
+                    awarenessPassed = awarenessCheck(player, neighbor);
+                    detected = awarenessPassed;
+                }
             }
+
+            if (!detected)
+                continue;
+
+            if (luaManager)
+            {
+                MWBase::LuaManager::CrimeWitnessEvent event;
+                event.mCriminal = player;
+                event.mWitness = neighbor;
+                event.mVictim = victim;
+                event.mType = type;
+                event.mFactionId = factionId;
+                event.mValue = arg;
+                event.mVictimAware = victimAware && isVictim;
+                event.mIsVictimWitness = isVictim;
+                event.mHadLineOfSight = hadLineOfSight;
+                event.mAwarenessPassed = awarenessPassed;
+                event.mCrimePosition = from;
+                if (!luaManager->crimeWitnessed(event))
+                    continue;
+            }
+
+            // NPC will complain about theft even if he will do nothing about it
+            if (type == OT_Theft || type == OT_Pickpocket)
+                MWBase::Environment::get().getDialogueManager()->say(neighbor, ESM::RefId::stringRefId("thief"));
+
+            crimeSeen = true;
         }
 
         if (crimeSeen)

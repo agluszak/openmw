@@ -1,5 +1,6 @@
 #include "luamanagerimp.hpp"
 
+#include <chrono>
 #include <filesystem>
 
 #include <MyGUI_InputManager.h>
@@ -55,6 +56,25 @@ namespace MWLua
 
             ~BoolScopeGuard() { mValue = false; }
         };
+
+        const char* crimeTypeToString(MWBase::MechanicsManager::OffenseType type)
+        {
+            switch (type)
+            {
+                case MWBase::MechanicsManager::OT_Assault:
+                    return "attack";
+                case MWBase::MechanicsManager::OT_Murder:
+                    return "killing";
+                case MWBase::MechanicsManager::OT_Trespassing:
+                case MWBase::MechanicsManager::OT_SleepingInOwnedBed:
+                    return "trespass";
+                case MWBase::MechanicsManager::OT_Pickpocket:
+                    return "pickpocket";
+                case MWBase::MechanicsManager::OT_Theft:
+                default:
+                    return "theft";
+            }
+        }
     }
 
     static LuaUtil::LuaStateSettings createLuaStateSettings()
@@ -606,6 +626,53 @@ namespace MWLua
         if (!localScripts)
             return nullptr;
         return localScripts->getActorControls();
+    }
+
+    bool LuaManager::crimeWitnessed(const MWBase::LuaManager::CrimeWitnessEvent& event)
+    {
+        if (!mGlobalScriptsStarted)
+            return true;
+
+        bool allowReaction = true;
+        mLua.protectedCall([&](LuaUtil::LuaView& view) {
+            if (event.mCriminal.isEmpty() || event.mWitness.isEmpty())
+                return;
+
+            sol::table crimeEvent = view.newTable();
+            crimeEvent["type"] = crimeTypeToString(event.mType);
+            crimeEvent["value"] = event.mValue;
+            crimeEvent["position"] = event.mCrimePosition;
+            crimeEvent["criminal"] = LObject(event.mCriminal);
+            crimeEvent["witness"] = LObject(event.mWitness);
+            if (!event.mVictim.isEmpty())
+                crimeEvent["victim"] = LObject(event.mVictim);
+            if (!event.mFactionId.empty())
+                crimeEvent["victimFaction"] = event.mFactionId.serializeText();
+
+            sol::table data = view.newTable();
+            data["crimeEvent"] = crimeEvent;
+            data["type"] = crimeEvent["type"];
+            data["value"] = event.mValue;
+            data["position"] = event.mCrimePosition;
+            data["criminal"] = LObject(event.mCriminal);
+            data["witness"] = LObject(event.mWitness);
+            if (!event.mVictim.isEmpty())
+                data["victim"] = LObject(event.mVictim);
+            if (!event.mFactionId.empty())
+                data["factionId"] = event.mFactionId.serializeText();
+
+            data["victimAware"] = event.mVictimAware;
+            data["isVictimWitness"] = event.mIsVictimWitness;
+            data["hadLineOfSight"] = event.mHadLineOfSight;
+            data["awarenessPassed"] = event.mAwarenessPassed;
+            data["realTimestamp"]
+                = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+
+            if (auto result = mGlobalScripts.callInterface<bool>("Crimes", "_onCrimeWitnessed", data))
+                allowReaction = *result;
+        });
+
+        return allowReaction;
     }
 
     void LuaManager::addCustomLocalScript(const MWWorld::Ptr& ptr, int scriptId, std::string_view initData)
